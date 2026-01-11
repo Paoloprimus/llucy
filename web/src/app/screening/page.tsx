@@ -58,6 +58,17 @@ export default function ScreeningPage() {
         body: JSON.stringify({ text }),
       });
 
+      const contentType = response.headers.get('content-type');
+      
+      // Se il server restituisce JSON, usa Browser TTS
+      if (contentType?.includes('application/json')) {
+        const data = await response.json();
+        if (data.useBrowserTTS) {
+          await speakWithBrowser(data.text);
+          return;
+        }
+      }
+
       if (!response.ok) throw new Error('TTS failed');
 
       const audioBlob = await response.blob();
@@ -81,6 +92,42 @@ export default function ScreeningPage() {
       setError('Errore audio');
       setStatus('idle');
     }
+  };
+
+  const speakWithBrowser = (text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'it-IT';
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      
+      // Cerca una voce italiana femminile
+      const voices = speechSynthesis.getVoices();
+      const italianVoice = voices.find(v => 
+        v.lang.startsWith('it') && v.name.toLowerCase().includes('female')
+      ) || voices.find(v => v.lang.startsWith('it'));
+      
+      if (italianVoice) {
+        utterance.voice = italianVoice;
+      }
+      
+      utterance.onend = () => {
+        if (!isComplete) {
+          startListening();
+        } else {
+          setStatus('idle');
+        }
+        resolve();
+      };
+      
+      utterance.onerror = () => {
+        setError('Errore sintesi vocale');
+        setStatus('idle');
+        resolve();
+      };
+      
+      speechSynthesis.speak(utterance);
+    });
   };
 
   const startListening = useCallback(async () => {
