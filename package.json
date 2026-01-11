@@ -1,0 +1,21 @@
+{
+  "name": "llucy-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "web",
+    "app",
+    "shared"
+  ],
+  "scripts": {
+    "web:dev": "cd web && npm run dev",
+    "web:build": "cd web && npm run build",
+    "app:start": "cd app && npm start",
+    "app:ios": "cd app && npm run ios",
+    "app:android": "cd app && npm run android",
+    "setup": "npm install && cd web && npm install && cd ../app && npm install && cd ../shared && npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "llucy",
+    "slug": "llucy",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.llucy.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "llucy ha bisogno del microfono per ascoltare la tua voce.",
+        "NSCameraUsageDescription": "llucy usa la camera per mostrarti come uno specchio.",
+        "NSSpeechRecognitionUsageDescription": "llucy trasforma la tua voce in testo per riflettere con te."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "package": "com.llucy.app",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "llucy usa la camera per mostrarti come uno specchio."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "llucy ha bisogno del microfono per ascoltare la tua voce."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
