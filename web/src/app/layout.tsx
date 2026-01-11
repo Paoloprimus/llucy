@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'llucy - Il tuo specchio intelligente',
+  title: 'llucy',
   description: 'Io rifletto con te',
 };
 
