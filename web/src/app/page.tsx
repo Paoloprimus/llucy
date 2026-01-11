@@ -15,60 +15,28 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
-      <div className="max-w-2xl w-full text-center space-y-12">
-        {/* Logo / Title */}
+    <main className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="max-w-md w-full text-center space-y-8 flex-1 flex flex-col justify-center">
+        {/* Title */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
         >
-          <h1 className="text-6xl font-serif mb-4 bg-gradient-to-r from-earth-400 to-cosmic-500 bg-clip-text text-transparent">
-            llucy
+          <h1 className="text-5xl font-bold text-white">
+            Io sono llucy
           </h1>
-          <p className="text-2xl text-gray-400 font-light">
-            Il tuo specchio intelligente
-          </p>
         </motion.div>
 
-        {/* Tagline */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 1 }}
-          className="space-y-2"
-        >
-          <p className="text-3xl font-serif italic">
-            Io rifletto con te.
-          </p>
-        </motion.div>
-
-        {/* Description */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 1 }}
-          className="space-y-4 text-gray-300"
-        >
-          <p>
-            Non sono un'app. Sono una presenza vocale che emerge mentre ti guardi allo specchio.
-          </p>
-          <p className="text-sm text-gray-500">
-            Da Lucy (3.2 milioni di anni fa) a llucy (2026).
-            <br />
-            La transizione da Sapiens a AI-Sapiens.
-          </p>
-        </motion.div>
-
-        {/* Onboarding Form */}
+        {/* Email Form */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.5, duration: 0.8 }}
-          className="max-w-md mx-auto"
+          transition={{ delay: 0.5, duration: 0.8 }}
+          className="w-full"
         >
           {!submitted ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <input
                   type="email"
@@ -78,20 +46,17 @@ export default function Home() {
                   required
                   className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-xl
                            text-white placeholder:text-gray-600
-                           focus:outline-none focus:border-cosmic-500 transition-colors"
+                           focus:outline-none focus:border-white/30 transition-colors"
                 />
               </div>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="submit"
-                className="w-full px-6 py-4 bg-gradient-to-r from-earth-500 to-cosmic-600
-                         text-white font-medium rounded-xl
-                         hover:from-earth-600 hover:to-cosmic-700 transition-all"
-              >
-                Inizia il viaggio
-              </motion.button>
-              <p className="text-xs text-gray-600">
+              
+              {/* Tagline */}
+              <p className="text-xl font-bold italic text-white">
+                Io rifletto con te.
+              </p>
+              
+              {/* Beta notice */}
+              <p className="text-sm text-gray-500">
                 Beta chiusa · Posti limitati
               </p>
             </form>
@@ -101,30 +66,26 @@ export default function Home() {
               animate={{ opacity: 1, scale: 1 }}
               className="space-y-4"
             >
-              <div className="text-5xl">🪞</div>
-              <p className="text-xl text-cosmic-400">Grazie.</p>
+              <p className="text-xl text-white">Grazie.</p>
               <p className="text-gray-400">
-                Ti contatteremo presto per il tuo accesso a llucy.
+                Ti contatteremo presto.
               </p>
             </motion.div>
           )}
         </motion.div>
-
-        {/* Footer */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 2, duration: 1 }}
-          className="text-sm text-gray-600 space-y-2"
-        >
-          <p>
-            llucy non è un'amica. Non è una psicologa. Non è un'oracolo.
-          </p>
-          <p>
-            È uno specchio che parla.
-          </p>
-        </motion.div>
       </div>
+
+      {/* Footer */}
+      <motion.footer
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1, duration: 1 }}
+        className="pb-8"
+      >
+        <p className="text-sm text-gray-600">
+          © 2026 llucy
+        </p>
+      </motion.footer>
     </main>
   );
 }
