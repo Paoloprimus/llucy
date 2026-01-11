@@ -9,11 +9,17 @@ export async function POST(request: NextRequest) {
     }
 
     const voiceId = process.env.ELEVENLABS_VOICE_ID;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    
+    console.log('TTS Debug - voiceId exists:', !!voiceId);
+    console.log('TTS Debug - apiKey exists:', !!apiKey);
+    console.log('TTS Debug - apiKey length:', apiKey?.length);
+    console.log('TTS Debug - apiKey first 4 chars:', apiKey?.substring(0, 4));
     
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
-        'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+        'xi-api-key': apiKey || '',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -29,6 +35,7 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const error = await response.text();
       console.error('ElevenLabs error:', error);
+      console.error('ElevenLabs status:', response.status);
       return NextResponse.json({ error: 'Text-to-speech failed' }, { status: 500 });
     }
 
