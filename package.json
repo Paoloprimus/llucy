@@ -2,11 +2,6 @@
   "name": "llucy-monorepo",
   "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "web",
-    "app",
-    "shared"
-  ],
   "scripts": {
     "web:dev": "cd web && npm run dev",
     "web:build": "cd web && npm run build",
