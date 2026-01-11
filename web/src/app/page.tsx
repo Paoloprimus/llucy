@@ -16,12 +16,13 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8">
-      <div className="max-w-md w-full text-center space-y-8 flex-1 flex flex-col justify-center">
+      <div className="max-w-md w-full text-center flex-1 flex flex-col justify-center">
         {/* Title */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
+          className="mb-16"
         >
           <h1 className="text-5xl font-bold text-white">
             Io sono llucy
@@ -36,30 +37,18 @@ export default function Home() {
           className="w-full"
         >
           {!submitted ? (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="La tua email"
-                  required
-                  className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-xl
-                           text-white placeholder:text-gray-600
-                           focus:outline-none focus:border-white/30 transition-colors"
-                />
-              </div>
-              
-              {/* Tagline */}
-              <p className="text-xl font-bold italic text-white">
-                Io rifletto con te.
-              </p>
-              
-              {/* Beta notice */}
-              <p className="text-sm text-gray-500">
-                Beta chiusa · Posti limitati
-              </p>
-            </form>
+            <div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="La tua email"
+                required
+                className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-xl
+                         text-white placeholder:text-gray-600
+                         focus:outline-none focus:border-white/30 transition-colors"
+              />
+            </div>
           ) : (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -80,8 +69,11 @@ export default function Home() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1, duration: 1 }}
-        className="pb-8"
+        className="pb-8 text-center space-y-2"
       >
+        <p className="text-sm text-gray-500">
+          Beta su invito
+        </p>
         <p className="text-sm text-gray-600">
           © 2026 llucy
         </p>
