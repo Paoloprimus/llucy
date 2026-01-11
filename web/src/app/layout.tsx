@@ -4,6 +4,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'llucy',
   description: 'Io rifletto con te',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
