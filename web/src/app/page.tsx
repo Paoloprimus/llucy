@@ -2,16 +2,40 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 
 export default function Home() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement Supabase integration
-    console.log('Email submitted:', email);
-    setSubmitted(true);
+    setLoading(true);
+    setError('');
+
+    try {
+      const { error: insertError } = await supabase
+        .from('waitlist')
+        .insert({ email });
+
+      if (insertError) {
+        if (insertError.code === '23505') {
+          // Email già presente
+          setError('Questa email è già in lista.');
+        } else {
+          setError('Qualcosa è andato storto. Riprova.');
+        }
+        return;
+      }
+
+      setSubmitted(true);
+    } catch {
+      setError('Errore di connessione. Riprova.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,18 +61,32 @@ export default function Home() {
           className="w-full"
         >
           {!submitted ? (
-            <div>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="La tua email"
                 required
+                disabled={loading}
                 className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-xl
                          text-white placeholder:text-gray-600
-                         focus:outline-none focus:border-white/30 transition-colors"
+                         focus:outline-none focus:border-white/30 transition-colors
+                         disabled:opacity-50"
               />
-            </div>
+              {error && (
+                <p className="text-red-400 text-sm">{error}</p>
+              )}
+              <button
+                type="submit"
+                disabled={loading || !email}
+                className="w-full px-6 py-4 bg-white/10 hover:bg-white/20 
+                         border border-white/20 rounded-xl text-white
+                         transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? '...' : 'Entra in lista'}
+              </button>
+            </form>
           ) : (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
