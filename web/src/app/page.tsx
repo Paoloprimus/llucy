@@ -95,7 +95,7 @@ export default function Home() {
             >
               <p className="text-xl text-white">Grazie.</p>
               <p className="text-gray-400">
-                Ti contatteremo presto.
+                Ti contatterò presto.
               </p>
             </motion.div>
           )}
