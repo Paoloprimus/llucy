@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 
-type Status = 'waiting' | 'idle' | 'listening' | 'processing' | 'speaking' | 'paused';
+type Status = 'checking' | 'invalid' | 'waiting' | 'idle' | 'listening' | 'processing' | 'speaking' | 'paused';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,7 +13,8 @@ interface Message {
 }
 
 export default function ScreeningPage() {
-  const [status, setStatus] = useState<Status>('waiting');
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState<Status>('checking');
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   
@@ -23,6 +25,38 @@ export default function ScreeningPage() {
   const sessionIdRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isPausedRef = useRef(false);
+  const emailRef = useRef<string>('anonymous');
+
+  // Verifica token all'avvio
+  useEffect(() => {
+    const verifyToken = async () => {
+      const token = searchParams.get('token');
+      
+      if (!token) {
+        // Nessun token - accesso non autorizzato
+        setStatus('invalid');
+        return;
+      }
+
+      // Cerca il token nella waitlist
+      const { data, error } = await supabase
+        .from('waitlist')
+        .select('email')
+        .eq('screening_token', token)
+        .single();
+
+      if (error || !data) {
+        setStatus('invalid');
+        return;
+      }
+
+      // Token valido - salva email e procedi
+      emailRef.current = data.email;
+      setStatus('waiting');
+    };
+
+    verifyToken();
+  }, [searchParams]);
 
   useEffect(() => {
     isCompleteRef.current = isComplete;
@@ -70,7 +104,7 @@ export default function ScreeningPage() {
           .insert({
             id: newId,
             ...sessionData,
-            email: 'anonymous',
+            email: emailRef.current,
           });
         
         if (error) {
@@ -353,6 +387,27 @@ export default function ScreeningPage() {
       <div className="flex flex-col items-center gap-8">
         
         <AnimatePresence mode="wait">
+          {status === 'checking' && (
+            <motion.div
+              key="checking"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-8 h-8 rounded-full border border-white/20 border-t-white/60 animate-spin"
+            />
+          )}
+
+          {status === 'invalid' && (
+            <motion.div
+              key="invalid"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center"
+            >
+              {/* Solo buio, nessun messaggio */}
+            </motion.div>
+          )}
+
           {status === 'waiting' && (
             <motion.div
               key="waiting"
