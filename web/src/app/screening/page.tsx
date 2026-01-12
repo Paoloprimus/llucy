@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type Status = 'idle' | 'listening' | 'processing' | 'speaking';
+type Status = 'waiting' | 'idle' | 'listening' | 'processing' | 'speaking';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -11,25 +11,31 @@ interface Message {
 }
 
 export default function ScreeningPage() {
-  const [status, setStatus] = useState<Status>('idle');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [status, setStatus] = useState<Status>('waiting');
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   
+  // Usa ref per i messaggi per evitare problemi di closure
+  const messagesRef = useRef<Message[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isCompleteRef = useRef(false);
 
-  // Inizia la conversazione quando la pagina si carica
+  // Sync isComplete con ref
   useEffect(() => {
-    startConversation();
+    isCompleteRef.current = isComplete;
+  }, [isComplete]);
+
+  // Carica le voci del browser all'avvio
+  useEffect(() => {
+    speechSynthesis.getVoices();
   }, []);
 
   const startConversation = async () => {
     try {
       setStatus('processing');
+      setError(null);
       
-      // Ottieni il messaggio di apertura da llucy
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -38,7 +44,7 @@ export default function ScreeningPage() {
 
       const data = await response.json();
       if (data.response) {
-        setMessages([{ role: 'assistant', content: data.response }]);
+        messagesRef.current = [{ role: 'assistant', content: data.response }];
         await speakText(data.response);
       }
     } catch (err) {
@@ -60,7 +66,6 @@ export default function ScreeningPage() {
 
       const contentType = response.headers.get('content-type');
       
-      // Se il server restituisce JSON, usa Browser TTS
       if (contentType?.includes('application/json')) {
         const data = await response.json();
         if (data.useBrowserTTS) {
@@ -75,11 +80,10 @@ export default function ScreeningPage() {
       const audioUrl = URL.createObjectURL(audioBlob);
       
       const audio = new Audio(audioUrl);
-      audioRef.current = audio;
       
       audio.onended = () => {
         URL.revokeObjectURL(audioUrl);
-        if (!isComplete) {
+        if (!isCompleteRef.current) {
           startListening();
         } else {
           setStatus('idle');
@@ -96,23 +100,23 @@ export default function ScreeningPage() {
 
   const speakWithBrowser = (text: string): Promise<void> => {
     return new Promise((resolve) => {
+      // Cancella eventuali sintesi in corso
+      speechSynthesis.cancel();
+      
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'it-IT';
-      utterance.rate = 0.9;
+      utterance.rate = 0.95;
       utterance.pitch = 1;
       
-      // Cerca una voce italiana femminile
       const voices = speechSynthesis.getVoices();
-      const italianVoice = voices.find(v => 
-        v.lang.startsWith('it') && v.name.toLowerCase().includes('female')
-      ) || voices.find(v => v.lang.startsWith('it'));
+      const italianVoice = voices.find(v => v.lang.startsWith('it'));
       
       if (italianVoice) {
         utterance.voice = italianVoice;
       }
       
       utterance.onend = () => {
-        if (!isComplete) {
+        if (!isCompleteRef.current) {
           startListening();
         } else {
           setStatus('idle');
@@ -120,9 +124,14 @@ export default function ScreeningPage() {
         resolve();
       };
       
-      utterance.onerror = () => {
-        setError('Errore sintesi vocale');
-        setStatus('idle');
+      utterance.onerror = (e) => {
+        console.error('Speech error:', e);
+        // Fallback: vai avanti comunque
+        if (!isCompleteRef.current) {
+          startListening();
+        } else {
+          setStatus('idle');
+        }
         resolve();
       };
       
@@ -177,7 +186,6 @@ export default function ScreeningPage() {
     try {
       setStatus('processing');
 
-      // Speech-to-text
       const formData = new FormData();
       formData.append('audio', audioBlob);
 
@@ -189,16 +197,17 @@ export default function ScreeningPage() {
       const sttData = await sttResponse.json();
       
       if (!sttData.transcript || sttData.transcript.trim() === '') {
-        // Nessun audio rilevato, riprova
         startListening();
         return;
       }
 
       const userMessage = sttData.transcript;
-      const newMessages: Message[] = [...messages, { role: 'user', content: userMessage }];
-      setMessages(newMessages);
+      
+      // Usa il ref per i messaggi correnti
+      const currentMessages = messagesRef.current;
+      const newMessages: Message[] = [...currentMessages, { role: 'user', content: userMessage }];
+      messagesRef.current = newMessages;
 
-      // Chat con Claude
       const chatResponse = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,10 +218,11 @@ export default function ScreeningPage() {
       
       if (chatData.isComplete) {
         setIsComplete(true);
+        isCompleteRef.current = true;
       }
 
       if (chatData.response) {
-        setMessages([...newMessages, { role: 'assistant', content: chatData.response }]);
+        messagesRef.current = [...newMessages, { role: 'assistant', content: chatData.response }];
         await speakText(chatData.response);
       }
     } catch (err) {
@@ -224,11 +234,31 @@ export default function ScreeningPage() {
 
   return (
     <main className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
-      {/* Stato visivo minimo */}
       <div className="flex flex-col items-center gap-8">
         
-        {/* Indicatore di stato */}
         <AnimatePresence mode="wait">
+          {/* Schermata iniziale - richiede tap per iniziare */}
+          {status === 'waiting' && (
+            <motion.div
+              key="waiting"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-6"
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-32 h-32 rounded-full bg-white/5 border border-white/20
+                          flex items-center justify-center cursor-pointer"
+                onClick={startConversation}
+              >
+                <div className="w-6 h-6 rounded-full bg-white/50" />
+              </motion.div>
+              <p className="text-gray-400">Tocca per iniziare</p>
+            </motion.div>
+          )}
+
           {status === 'listening' && (
             <motion.div
               key="listening"
@@ -237,9 +267,8 @@ export default function ScreeningPage() {
               exit={{ scale: 0.8, opacity: 0 }}
               className="flex flex-col items-center gap-4"
             >
-              {/* Cerchio pulsante - ascolto */}
               <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
+                animate={{ scale: [1, 1.15, 1] }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
                 className="w-24 h-24 rounded-full bg-white/10 border border-white/30
                           flex items-center justify-center cursor-pointer"
@@ -259,7 +288,6 @@ export default function ScreeningPage() {
               exit={{ scale: 0.8, opacity: 0 }}
               className="flex flex-col items-center gap-4"
             >
-              {/* Onda sonora stilizzata */}
               <div className="flex items-center gap-1 h-24">
                 {[...Array(5)].map((_, i) => (
                   <motion.div
@@ -327,7 +355,6 @@ export default function ScreeningPage() {
           )}
         </AnimatePresence>
 
-        {/* Errore */}
         {error && (
           <motion.p
             initial={{ opacity: 0 }}
