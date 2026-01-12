@@ -2,8 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 
-type Status = 'waiting' | 'idle' | 'listening' | 'processing' | 'speaking';
+type Status = 'waiting' | 'idle' | 'listening' | 'processing' | 'speaking' | 'paused';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -15,21 +16,53 @@ export default function ScreeningPage() {
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   
-  // Usa ref per i messaggi per evitare problemi di closure
   const messagesRef = useRef<Message[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const isCompleteRef = useRef(false);
+  const sessionIdRef = useRef<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // Sync isComplete con ref
   useEffect(() => {
     isCompleteRef.current = isComplete;
   }, [isComplete]);
 
-  // Carica le voci del browser all'avvio
   useEffect(() => {
     speechSynthesis.getVoices();
   }, []);
+
+  // Salva la sessione nel database
+  const saveSession = async (finalStatus?: string) => {
+    try {
+      const sessionData = {
+        transcript: messagesRef.current,
+        status: finalStatus || 'in_progress',
+        updated_at: new Date().toISOString(),
+      };
+
+      if (sessionIdRef.current) {
+        await supabase
+          .from('screening_sessions')
+          .update(sessionData)
+          .eq('id', sessionIdRef.current);
+      } else {
+        const { data } = await supabase
+          .from('screening_sessions')
+          .insert({
+            ...sessionData,
+            email: 'anonymous', // Per ora, poi collegheremo all'invito
+          })
+          .select('id')
+          .single();
+        
+        if (data) {
+          sessionIdRef.current = data.id;
+        }
+      }
+    } catch (err) {
+      console.error('Save session error:', err);
+    }
+  };
 
   const startConversation = async () => {
     try {
@@ -45,6 +78,7 @@ export default function ScreeningPage() {
       const data = await response.json();
       if (data.response) {
         messagesRef.current = [{ role: 'assistant', content: data.response }];
+        await saveSession();
         await speakText(data.response);
       }
     } catch (err) {
@@ -52,6 +86,36 @@ export default function ScreeningPage() {
       setError('Errore di connessione');
       setStatus('idle');
     }
+  };
+
+  const pauseConversation = () => {
+    // Ferma tutto
+    speechSynthesis.cancel();
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    setStatus('paused');
+    saveSession('paused');
+  };
+
+  const resumeConversation = async () => {
+    setStatus('processing');
+    
+    // llucy riprende in modo naturale
+    const resumeMessage = messagesRef.current.length > 2 
+      ? "Eccomi. Dove eravamo rimasti?"
+      : "Rieccomi. Continuiamo?";
+    
+    messagesRef.current.push({ role: 'assistant', content: resumeMessage });
+    await saveSession('in_progress');
+    await speakText(resumeMessage);
   };
 
   const speakText = async (text: string) => {
@@ -87,6 +151,7 @@ export default function ScreeningPage() {
           startListening();
         } else {
           setStatus('idle');
+          saveSession('completed');
         }
       };
       
@@ -100,7 +165,6 @@ export default function ScreeningPage() {
 
   const speakWithBrowser = (text: string): Promise<void> => {
     return new Promise((resolve) => {
-      // Cancella eventuali sintesi in corso
       speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance(text);
@@ -120,13 +184,13 @@ export default function ScreeningPage() {
           startListening();
         } else {
           setStatus('idle');
+          saveSession('completed');
         }
         resolve();
       };
       
       utterance.onerror = (e) => {
         console.error('Speech error:', e);
-        // Fallback: vai avanti comunque
         if (!isCompleteRef.current) {
           startListening();
         } else {
@@ -146,6 +210,8 @@ export default function ScreeningPage() {
       audioChunksRef.current = [];
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus',
       });
@@ -160,6 +226,7 @@ export default function ScreeningPage() {
 
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
         
         if (audioChunksRef.current.length > 0) {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
@@ -203,10 +270,11 @@ export default function ScreeningPage() {
 
       const userMessage = sttData.transcript;
       
-      // Usa il ref per i messaggi correnti
       const currentMessages = messagesRef.current;
       const newMessages: Message[] = [...currentMessages, { role: 'user', content: userMessage }];
       messagesRef.current = newMessages;
+
+      await saveSession();
 
       const chatResponse = await fetch('/api/chat', {
         method: 'POST',
@@ -223,6 +291,7 @@ export default function ScreeningPage() {
 
       if (chatData.response) {
         messagesRef.current = [...newMessages, { role: 'assistant', content: chatData.response }];
+        await saveSession(chatData.isComplete ? 'completed' : 'in_progress');
         await speakText(chatData.response);
       }
     } catch (err) {
@@ -232,12 +301,30 @@ export default function ScreeningPage() {
     }
   };
 
+  const showPauseButton = status === 'speaking' || status === 'listening' || status === 'processing';
+
   return (
-    <main className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
+    <main className="min-h-screen bg-black flex flex-col items-center justify-center p-8 relative">
+      {/* Pulsante Pausa - sempre visibile durante la conversazione */}
+      {showPauseButton && (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute top-8 right-8 w-12 h-12 rounded-full bg-white/5 
+                    border border-white/20 flex items-center justify-center
+                    hover:bg-white/10 transition-colors"
+          onClick={pauseConversation}
+        >
+          <div className="flex gap-1">
+            <div className="w-1 h-4 bg-white/50 rounded" />
+            <div className="w-1 h-4 bg-white/50 rounded" />
+          </div>
+        </motion.button>
+      )}
+
       <div className="flex flex-col items-center gap-8">
         
         <AnimatePresence mode="wait">
-          {/* Schermata iniziale - richiede tap per iniziare */}
           {status === 'waiting' && (
             <motion.div
               key="waiting"
@@ -256,6 +343,30 @@ export default function ScreeningPage() {
                 <div className="w-6 h-6 rounded-full bg-white/50" />
               </motion.div>
               <p className="text-gray-400">Tocca per iniziare</p>
+            </motion.div>
+          )}
+
+          {status === 'paused' && (
+            <motion.div
+              key="paused"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-6"
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-32 h-32 rounded-full bg-white/5 border border-white/20
+                          flex items-center justify-center cursor-pointer"
+                onClick={resumeConversation}
+              >
+                {/* Play icon */}
+                <div className="w-0 h-0 border-t-[12px] border-t-transparent 
+                              border-l-[20px] border-l-white/50 
+                              border-b-[12px] border-b-transparent ml-1" />
+              </motion.div>
+              <p className="text-gray-400">Tocca per riprendere</p>
             </motion.div>
           )}
 
