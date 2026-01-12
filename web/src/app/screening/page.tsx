@@ -50,19 +50,22 @@ export default function ScreeningPage() {
         
         if (error) console.error('Update error:', error.message, error.code, error.details);
       } else {
-        const { data, error } = await supabase
+        // Genera UUID lato client
+        const newId = crypto.randomUUID();
+        
+        const { error } = await supabase
           .from('screening_sessions')
           .insert({
+            id: newId,
             ...sessionData,
-            email: 'anonymous', // Per ora, poi collegheremo all'invito
-          })
-          .select('id')
-          .single();
+            email: 'anonymous',
+          });
         
         if (error) {
           console.error('Insert error:', error.message, error.code, error.details);
-        } else if (data) {
-          sessionIdRef.current = data.id;
+        } else {
+          sessionIdRef.current = newId;
+          console.log('Session created:', newId);
         }
       }
     } catch (err) {
