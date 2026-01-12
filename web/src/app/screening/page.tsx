@@ -48,7 +48,7 @@ export default function ScreeningPage() {
           .update(sessionData)
           .eq('id', sessionIdRef.current);
         
-        if (error) console.error('Update error:', error);
+        if (error) console.error('Update error:', error.message, error.code, error.details);
       } else {
         const { data, error } = await supabase
           .from('screening_sessions')
@@ -60,7 +60,7 @@ export default function ScreeningPage() {
           .single();
         
         if (error) {
-          console.error('Insert error:', error);
+          console.error('Insert error:', error.message, error.code, error.details);
         } else if (data) {
           sessionIdRef.current = data.id;
         }
