@@ -50,15 +50,16 @@ export default function ScreeningPage() {
       });
 
       if (sessionIdRef.current) {
-        const { error, count } = await supabase
+        const { data, error } = await supabase
           .from('screening_sessions')
           .update(sessionData)
-          .eq('id', sessionIdRef.current);
+          .eq('id', sessionIdRef.current)
+          .select();
         
         if (error) {
           console.error('Update error:', error.message, error.code, error.details);
         } else {
-          console.log('Session updated successfully, count:', count);
+          console.log('Update result - rows affected:', data?.length, 'data:', data);
         }
       } else {
         // Genera UUID lato client
