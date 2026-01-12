@@ -484,13 +484,11 @@ export default function ScreeningPage() {
           {isComplete && (
             <motion.div
               key="complete"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center"
-            >
-              <p className="text-white text-lg">Grazie.</p>
-              <p className="text-gray-500 mt-2">Riceverai presto una risposta.</p>
-            </motion.div>
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: 2, delay: 1 }}
+              className="w-24 h-24"
+            />
           )}
         </AnimatePresence>
 
