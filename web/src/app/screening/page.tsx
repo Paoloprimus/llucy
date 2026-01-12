@@ -34,19 +34,23 @@ export default function ScreeningPage() {
   // Salva la sessione nel database
   const saveSession = async (finalStatus?: string) => {
     try {
+      const isCompleted = finalStatus === 'completed';
+      
       const sessionData = {
         transcript: messagesRef.current,
         status: finalStatus || 'in_progress',
-        updated_at: new Date().toISOString(),
+        ...(isCompleted && { completed_at: new Date().toISOString() }),
       };
 
       if (sessionIdRef.current) {
-        await supabase
+        const { error } = await supabase
           .from('screening_sessions')
           .update(sessionData)
           .eq('id', sessionIdRef.current);
+        
+        if (error) console.error('Update error:', error);
       } else {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('screening_sessions')
           .insert({
             ...sessionData,
@@ -55,7 +59,9 @@ export default function ScreeningPage() {
           .select('id')
           .single();
         
-        if (data) {
+        if (error) {
+          console.error('Insert error:', error);
+        } else if (data) {
           sessionIdRef.current = data.id;
         }
       }
