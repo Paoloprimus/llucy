@@ -22,6 +22,7 @@ export default function ScreeningPage() {
   const isCompleteRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isPausedRef = useRef(false);
 
   useEffect(() => {
     isCompleteRef.current = isComplete;
@@ -42,13 +43,23 @@ export default function ScreeningPage() {
         ...(isCompleted && { completed_at: new Date().toISOString() }),
       };
 
+      console.log('Saving session:', {
+        sessionId: sessionIdRef.current,
+        messageCount: messagesRef.current.length,
+        status: finalStatus
+      });
+
       if (sessionIdRef.current) {
-        const { error } = await supabase
+        const { error, count } = await supabase
           .from('screening_sessions')
           .update(sessionData)
           .eq('id', sessionIdRef.current);
         
-        if (error) console.error('Update error:', error.message, error.code, error.details);
+        if (error) {
+          console.error('Update error:', error.message, error.code, error.details);
+        } else {
+          console.log('Session updated successfully, count:', count);
+        }
       } else {
         // Genera UUID lato client
         const newId = crypto.randomUUID();
@@ -98,13 +109,19 @@ export default function ScreeningPage() {
   };
 
   const pauseConversation = () => {
-    // Ferma tutto
+    isPausedRef.current = true;
+    
+    // Ferma sintesi vocale
     speechSynthesis.cancel();
     
+    // Ferma registrazione senza processare
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      // Rimuovi handler per evitare processamento
+      mediaRecorderRef.current.onstop = null;
       mediaRecorderRef.current.stop();
     }
     
+    // Ferma stream audio
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -115,6 +132,7 @@ export default function ScreeningPage() {
   };
 
   const resumeConversation = async () => {
+    isPausedRef.current = false;
     setStatus('processing');
     
     // llucy riprende in modo naturale
